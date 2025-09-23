@@ -7,13 +7,16 @@ Setup a basic development environment with SSH access to github. This environmen
 - Working access to the [BUas Coder.ai environment](http://coder.ai.buas.nl)
   - Authenticate with your student github account
   - Request a password from Dean vA
-- [`setup.sh`](./setup.sh): Script for initializing the environment (right click the link to download)
-- [`packages.txt`](./packages.txt): Debian packages required for setting up the environment (right click the link to download)
+- [`setup.sh`](https://raw.githubusercontent.com/AaronCiuffo245484/coder_ai_setup/main/setup.sh): Script for initializing the environment (right click the link to download)
+- [`packages.txt`](https://raw.githubusercontent.com/AaronCiuffo245484/coder_ai_setup/main/packages.txt): Debian packages required for setting up the environment (right click the link to download)
   - Optional: Edit this to add or remove packages as needed prior to uploading
+  - A working and active connection to the BUas VPN for off-campus access.
 
 ## Initial Setup
 
-This step assumes that you have working access to the [BUas Coder.ai environment](http://coder.ai.buas.nl).
+This step assumes that you have working access to the [BUas Coder.ai environment](http://coder.ai.buas.nl). 
+
+**Note: you must have an active BUas VPN connection established or connected to the BUas network.**
 
 From landing page do the following:
 
