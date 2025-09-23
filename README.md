@@ -1,12 +1,12 @@
 # Setup a BUAS Coder.AI Environment
 
-Setup a basic development environment with SSH access to github.
+Setup a basic development environment with SSH access to github. This environment should be suitable for training AI models.
 
 ## Requirements
 
 - Working access to the [BUas Coder.ai environment](http://coder.ai.buas.nl)
   - Authenticate with your student github account
-  - Request a password from Dean van Aswegen
+  - Request a password from Dean vA
 - [`setup.sh`](./setup.sh): Script for initializing the environment (right click the link to download)
 - [`packages.txt`](./packages.txt): Debian packages required for setting up the environment (right click the link to download)
   - Optional: Edit this to add or remove packages as needed prior to uploading
