@@ -38,6 +38,7 @@ This assumes that you have successfully created a workspace and can see the land
 1. From the server page, click on the "Jupyter Notebook" button to launch the file manager
 2. From the file manager choose "Upload", browse for and select the `packages.txt` and `setup.sh` scripts 
     - You may close this when you are done
+    - (NB: IF YOU ARE USING A WINDOWS PC: Don't clone directly on your machine, use the `git clone "url" `
 3. From the landing page, choose the "Terminal" button to launch a bash shell in a new window.
 4. Make sure you are in the `/home/y2a/` directory
 5. Run `chmod +x setup.sh` 
