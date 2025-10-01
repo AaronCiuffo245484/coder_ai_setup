@@ -96,11 +96,30 @@ Host github.com
   IdentitiesOnly yes
 EOF
 
-chmod 600 "$KEYDIR/config"
-
 # Host key for GitHub:443
 ssh-keyscan -p 443 ssh.github.com >> "$KEYDIR/known_hosts"
+
+# -----------------------------
+# Fix SSH permissions and ownership
+# -----------------------------
+echo "Setting correct SSH permissions and ownership..."
+
+if [[ $EUID -eq 0 ]]; then
+  # Running as root
+  chown -R root:root "$KEYDIR"
+else
+  # Running as regular user
+  chown -R "$USER:$(id -gn)" "$KEYDIR"
+fi
+
+# Permissions are sometimes reset by the instance. Reapply them.
+chmod 700 "$KEYDIR"
+chmod 600 "$KEYDIR/config"
+chmod 600 "$KEYFILE"
+chmod 644 "$KEYFILE.pub"
 chmod 600 "$KEYDIR/known_hosts" 2>/dev/null || true
+
+echo "SSH permissions configured."
 
 # -----------------------------
 # Link ~/.ssh if not present
