@@ -59,3 +59,7 @@ Provided all the steps are completed properly, you will be prompted to enter the
 ![SSH Clone URL](./assets/clone_github.png)
 
 Once the repo is cloned, you can begin using your repo as normal through the Jupyter file manager interface.
+
+## Troubleshooting
+
+If you encounter issues where `git` operations take a long time only to ultimately fail, try running the setup script again.
