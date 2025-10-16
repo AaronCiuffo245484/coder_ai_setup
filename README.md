@@ -62,4 +62,13 @@ Once the repo is cloned, you can begin using your repo as normal through the Jup
 
 ## Troubleshooting
 
+### Problem: Git reports "Dubious permisisons" on files after server restart
+
+**Cause**: The ownership of your ssh directory no longer maps to "your" user. 
+
+**Solution**: Run `chown -R root:root /ssh/` and then `chmod 600 /ssh/id_rsa` <- This resets ownership for your current user and ensures proper permissions.
+
+Thanks to Alex K for pointing this out.
+
 If you encounter issues where `git` operations take a long time only to ultimately fail, try running the setup script again.
+
