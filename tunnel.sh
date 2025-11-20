@@ -10,6 +10,7 @@ SSH_KEY="$PERSISTENT_DIR/ssh/id_ed25519"
 LOCAL_PORT=22
 REMOTE_PORT=10022
 REMOTE_SSH_PORT=443
+JUPYTER_PORT=8888
 
 # -----------------------------
 # Verify SSH key exists
@@ -56,6 +57,19 @@ echo "  Tunnel port on remote server: $REMOTE_PORT"
 echo "  Local SSH port: $LOCAL_PORT"
 echo ""
 
+read -p "Do you want to forward Jupyter port $JUPYTER_PORT? (y/n): " -n 1 -r
+echo ""
+FORWARD_JUPYTER=$REPLY
+
+if [[ $FORWARD_JUPYTER =~ ^[Yy]$ ]]; then
+  echo "  Jupyter port: $JUPYTER_PORT (will be forwarded)"
+  TUNNEL_PORTS="-R $REMOTE_PORT:localhost:$LOCAL_PORT -R $JUPYTER_PORT:localhost:$JUPYTER_PORT"
+else
+  echo "  Jupyter forwarding: disabled"
+  TUNNEL_PORTS="-R $REMOTE_PORT:localhost:$LOCAL_PORT"
+fi
+echo ""
+
 read -p "Is this correct? (y/n): " -n 1 -r
 echo ""
 
@@ -78,7 +92,7 @@ nohup ssh -N -T \
   -o ServerAliveCountMax=3 \
   -o ExitOnForwardFailure=yes \
   -o StrictHostKeyChecking=no \
-  -R $REMOTE_PORT:localhost:$LOCAL_PORT \
+  $TUNNEL_PORTS \
   -p $REMOTE_SSH_PORT \
   -i "$SSH_KEY" \
   "$REMOTE_USER@$REMOTE_HOST" \
