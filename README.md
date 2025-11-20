@@ -267,6 +267,48 @@ If packages fail to install:
    sudo apt-get update
    ```
 
+### Pip Commands Don't Work via SSH Tunnel
+
+**Symptoms:** When connected via SSH tunnel, pip commands fail with "externally-managed-environment" error, but work fine in the coder.ai web terminal.
+
+**Cause:** The coder.ai web terminal sets environment variables (like `PIP_BREAK_SYSTEM_PACKAGES=1`) that SSH sessions don't inherit by default.
+
+**Solution:** 
+
+The `ssh_setup.sh` script creates a `.coder_env` file that sets these variables. Make sure:
+
+1. You've run `ssh_setup.sh` after the most recent restart
+2. Your `~/.bashrc` sources the environment file:
+   ```bash
+   tail -5 ~/.bashrc
+   # Should show: source /home/<your year & block>/.coder_env
+   ```
+3. You're using a login shell when connecting:
+   ```bash
+   # Use this connection method (note the 'bash -l'):
+   ssh -t -p 443 USER@ssh.myhost.com 'ssh -t -p 10022 root@localhost "bash -l"'
+   ```
+
+If pip still doesn't work, manually source the environment:
+```bash
+source /home/<your year & block>/.coder_env
+echo $PIP_BREAK_SYSTEM_PACKAGES  # Should show: 1
+```
+
+### SSH Connection Starts in /root Instead of Working Directory
+
+**Symptoms:** When connecting via SSH tunnel, you start in `/root` instead of your project directory.
+
+**Solution:** 
+
+Include `cd /home/<your year & block>` in your connection command:
+
+```bash
+ssh -t -p 443 USER@ssh.myhost.com 'ssh -t -p 10022 root@localhost "bash -l -c \"cd /home/<your year & block> && tmux -CC new -A -s myshell\""'
+```
+
+The `cd` command must be inside the `bash -l -c` context so it happens before tmux starts.
+
 ---
 
 ## Optional: Direct SSH Access via Reverse Tunnel
@@ -334,7 +376,7 @@ Download these additional scripts:
 
 ### Connecting from Your Laptop
 
-Once the tunnel is running, you can connect from your laptop:
+Once the tunnel is running, you can connect from your laptop. The SSH connection uses different environment initialization than the coder.ai web terminal, so we need to use specific commands to match that environment.
 
 **Basic two-hop connection:**
 ```bash
@@ -342,29 +384,42 @@ ssh USERNAME@ssh.myhost.com
 ssh -p 10022 root@localhost
 ```
 
-**With iTerm2 tmux integration (recommended):**
+**Direct connection with full environment (recommended):**
 
-For the best experience with native iTerm2 tmux integration, use:
+To get the same environment as the coder.ai web terminal (including pip compatibility, CUDA variables, and correct working directory):
+
 ```bash
-ssh -t -p 443 USERNAME@ssh.myhost.com 'ssh -t -p 10022 root@localhost "tmux -CC new -A -s myshell"'
+ssh -t -p 443 USERNAME@ssh.myhost.com 'ssh -t -p 10022 root@localhost "cd /home/<your year & block> && bash -l"'
 ```
 
-Replace `USERNAME` with your actual username and `443` with your server's SSH port if different.
+The `-l` flag launches a login shell which sources all environment configurations, and `cd` ensures you start in your working directory instead of `/root`.
+
+**With iTerm2 tmux integration (best experience):**
+
+For the best experience with native iTerm2 tmux integration:
+
+```bash
+ssh -t -p 443 USERNAME@ssh.myhost.com 'ssh -t -p 10022 root@localhost "bash -l -c \"cd /home/<your year & block> && tmux -CC new -A -s myshell\""'
+```
+
+Replace `USERNAME` with your actual username, `443` with your server's SSH port if different, and `/home/<your year & block>` with your actual home directory.
 
 This command:
+- Uses login shell (`bash -l`) to load all environment variables
+- Changes to your working directory before starting tmux
 - Creates or attaches to a tmux session named "myshell"
 - Uses iTerm2's native tmux integration mode (`-CC`)
-- Properly handles the nested SSH connection with double `-t` flags
+
+**Understanding the Environment Difference:**
+
+The coder.ai web terminal sets environment variables like `PIP_BREAK_SYSTEM_PACKAGES=1` that allow pip to work. SSH sessions don't automatically get these variables. The `ssh_setup.sh` script creates a `.coder_env` file that's sourced by `.bashrc` to provide these variables. Using `bash -l` ensures this file is sourced.
 
 **Setting up an iTerm2 profile:**
 
 For easy access, create an iTerm2 profile:
 1. Open iTerm2 → Preferences → Profiles
 2. Create a new profile (e.g., "Coder.ai")
-3. In the "General" tab, set the command to:
-   ```bash
-   ssh -t -p 443 USERNAME@ssh.myhost.com 'ssh -t -p 10022 root@localhost "tmux -CC new -A -s myshell"'
-   ```
+3. In the "General" tab, set the command to the tmux command above (with your actual username and directory)
 4. Save the profile
 
 Now you can launch your coder.ai workspace with native tmux integration directly from iTerm2.
