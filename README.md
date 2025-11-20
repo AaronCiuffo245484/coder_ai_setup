@@ -201,14 +201,6 @@ You can then continue working with git as normal.
 
 ## Troubleshooting
 
-### Problem: Git reports "Dubious permisisons" on files after server restart
-
-**Cause**: The ownership of your ssh directory no longer maps to "your" user. 
-
-**Solution**: Run `chown -R root:root /ssh/` and then `chmod 600 /ssh/id_rsa` <- This resets ownership for your current user and ensures proper permissions.
-
-Thanks to Alex K for pointing this out.
-
 ### Git Operations Fail or Timeout
 
 If `git` operations take a long time and ultimately fail:
@@ -234,6 +226,35 @@ If you can't authenticate with GitHub:
    ls -la /home/<your year & block>/ssh/
    ```
 3. Re-run startup.sh to restore keys to `~/.ssh/`
+
+### Git Reports "Dubious Ownership" or Permission Errors
+
+**Symptoms:** Git operations fail with errors about dubious ownership or SSH refuses to use your keys due to permission issues.
+
+**Cause:** After a workspace restart, file ownership in your SSH directory may no longer match your current user, or permissions may have been reset.
+
+**Solution:** 
+
+The `startup.sh` script automatically fixes ownership and permissions, but if you encounter this error, you can manually fix it:
+
+```bash
+# Fix ownership (if running as root)
+chown -R root:root /home/<your year & block>/ssh/
+
+# Fix permissions
+chmod 700 /home/<your year & block>/ssh/
+chmod 600 /home/<your year & block>/ssh/id_ed25519
+chmod 644 /home/<your year & block>/ssh/id_ed25519.pub
+chmod 600 /home/<your year & block>/ssh/config
+
+# Then re-run startup to copy with correct permissions
+cd /home/<your year & block>/
+./startup.sh
+```
+
+This resets ownership for your current user and ensures proper permissions on all SSH files.
+
+*Thanks to Alex K for identifying this issue.*
 
 ### Packages Not Installing
 
