@@ -99,6 +99,84 @@ After adding your SSH key, you'll be prompted to enter a repository URL. You can
 
 The repository will be cloned to your home directory.
 
+## Customizing Your Environment with packages.txt
+
+The `packages.txt` file allows you to automatically install system packages every time your workspace starts. This is useful for installing tools and libraries that aren't included in the base image.
+
+### Format
+
+The file should contain one package name per line:
+
+```
+# This is a comment - lines starting with # are ignored
+vim
+htop
+tmux
+tree
+```
+
+### Common Packages
+
+Here are some commonly useful packages:
+
+**Text editors:**
+- `vim` - Vi improved text editor
+- `nano` - Simple text editor
+- `emacs` - Extensible text editor
+
+**System monitoring:**
+- `htop` - Interactive process viewer
+- `iotop` - I/O monitoring
+- `ncdu` - Disk usage analyzer
+
+**Development tools:**
+- `tmux` - Terminal multiplexer
+- `tree` - Directory structure viewer
+- `jq` - JSON processor
+- `curl` - Data transfer tool
+- `wget` - File downloader
+
+**Build tools:**
+- `build-essential` - Compilation tools (gcc, make, etc.)
+- `cmake` - Cross-platform build system
+- `git-lfs` - Git Large File Storage
+
+### How It Works
+
+When you run `startup.sh` after a workspace restart:
+1. The script checks if `packages.txt` exists in your home directory
+2. If found, it reads the file (skipping comments and empty lines)
+3. Checks if the apt package cache is older than 15 days
+4. Updates the cache if needed
+5. Installs all listed packages using `apt-get install`
+
+### Adding Packages
+
+You can edit `packages.txt` at any time:
+
+**Via Jupyter file manager:**
+1. Open Jupyter from the workspace page
+2. Navigate to your home directory
+3. Open `packages.txt` (or create it if it doesn't exist)
+4. Add one package name per line
+5. Save the file
+
+**Via terminal:**
+```bash
+# Add a package to the file
+echo "htop" >> /home/<your year & block>/packages.txt
+
+# Edit the file directly
+nano /home/<your year & block>/packages.txt
+```
+
+### Notes
+
+- Package installation requires the apt cache to be updated, which can take time on first run
+- Not all packages are available - if a package fails, check the name on https://packages.ubuntu.com
+- Python packages should be installed via `pip`, not through `packages.txt`
+- The workspace may already have many development tools pre-installed
+
 ## After Workspace Restarts
 
 When your workspace restarts (due to inactivity or maintenance), you'll need to restore your SSH configuration:
@@ -237,31 +315,38 @@ Download these additional scripts:
 
 Once the tunnel is running, you can connect from your laptop:
 
-**Two-hop connection:**
+**Basic two-hop connection:**
 ```bash
 ssh USERNAME@ssh.myhost.com
 ssh -p 10022 root@localhost
 ```
 
-**Or use SSH ProxyJump (recommended):**
+**With iTerm2 tmux integration (recommended):**
 
-Add to your laptop's `~/.ssh/config`:
-```
-Host coder
-    HostName localhost
-    User root
-    Port 10022
-    ProxyJump USERNAME@ssh.myhost.com:443
-    RequestTTY yes
-    RemoteCommand tmux -CC new -A -s txshell
-```
-
-Then simply run:
+For the best experience with native iTerm2 tmux integration, use:
 ```bash
-ssh coder
+ssh -t -p 443 USERNAME@ssh.myhost.com 'ssh -t -p 10022 root@localhost "tmux -CC new -A -s myshell"'
 ```
 
-This will connect directly to your coder.ai workspace and attach to a tmux session with iTerm2 integration.
+Replace `USERNAME` with your actual username and `443` with your server's SSH port if different.
+
+This command:
+- Creates or attaches to a tmux session named "myshell"
+- Uses iTerm2's native tmux integration mode (`-CC`)
+- Properly handles the nested SSH connection with double `-t` flags
+
+**Setting up an iTerm2 profile:**
+
+For easy access, create an iTerm2 profile:
+1. Open iTerm2 → Preferences → Profiles
+2. Create a new profile (e.g., "Coder.ai")
+3. In the "General" tab, set the command to:
+   ```bash
+   ssh -t -p 443 USERNAME@ssh.myhost.com 'ssh -t -p 10022 root@localhost "tmux -CC new -A -s myshell"'
+   ```
+4. Save the profile
+
+Now you can launch your coder.ai workspace with native tmux integration directly from iTerm2.
 
 ### Managing the Tunnel
 
