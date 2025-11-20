@@ -41,6 +41,22 @@ if [[ ! -f "$SSH_KEY" ]]; then
   exit 1
 fi
 
+# Fix ownership and permissions in persistent storage first
+echo "Fixing SSH file ownership and permissions in persistent storage..."
+if [[ $EUID -eq 0 ]]; then
+  # Running as root
+  chown -R root:root "$SSH_DIR"
+else
+  # Running as regular user
+  chown -R "$USER:$(id -gn)" "$SSH_DIR"
+fi
+
+# Set correct permissions on persistent storage
+chmod 700 "$SSH_DIR"
+chmod 600 "$SSH_KEY"
+chmod 644 "$SSH_KEY.pub"
+chmod 600 "$SSH_DIR/config" 2>/dev/null || true
+
 # Create ~/.ssh directory
 mkdir -p "$ROOT_SSH"
 chmod 700 "$ROOT_SSH"
@@ -50,10 +66,16 @@ cp "$SSH_KEY" "$ROOT_SSH/id_ed25519"
 cp "$SSH_KEY.pub" "$ROOT_SSH/id_ed25519.pub"
 cp "$SSH_DIR/config" "$ROOT_SSH/config"
 
-# Set correct permissions
+# Set correct permissions on copied files
 chmod 600 "$ROOT_SSH/id_ed25519"
 chmod 644 "$ROOT_SSH/id_ed25519.pub"
 chmod 600 "$ROOT_SSH/config"
+
+# Copy authorized_keys if it exists
+if [[ -f "$SSH_DIR/authorized_keys" ]]; then
+  cp "$SSH_DIR/authorized_keys" "$ROOT_SSH/authorized_keys"
+  chmod 600 "$ROOT_SSH/authorized_keys"
+fi
 
 echo "SSH keys restored to ~/.ssh/"
 echo ""
