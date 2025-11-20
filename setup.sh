@@ -1,181 +1,172 @@
 #!/usr/bin/env bash
+set -e
 
-PKGFILE="/home/y2a/packages.txt"
-KEYDIR="/home/y2a/ssh"
-KEYFILE="$KEYDIR/id_rsa"
-STAMP="/var/lib/apt/periodic/update-success-stamp"
-THRESHOLD_DAYS=15
-THRESHOLD_SEC=$((THRESHOLD_DAYS * 24 * 60 * 60))
+echo "=== Coder.ai Environment Setup ==="
+echo ""
 
-# Use sudo for apt if not root
-if [[ $EUID -ne 0 ]]; then
-  SUDO="sudo"
+# Configuration - use current directory as persistent storage
+PERSISTENT_DIR="$PWD"
+
+echo "This script will use the following directory for persistent storage:"
+echo "  $PERSISTENT_DIR"
+echo ""
+read -p "Is this correct? (y/n): " -n 1 -r
+echo ""
+
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+  echo "Setup cancelled. Please cd to your persistent storage directory and run again."
+  exit 1
+fi
+
+SSH_DIR="$PERSISTENT_DIR/ssh"
+SSH_KEY="$SSH_DIR/id_ed25519"
+
+# -----------------------------
+# Create SSH directory structure
+# -----------------------------
+echo "Setting up SSH directory in persistent storage..."
+mkdir -p "$SSH_DIR"
+chmod 700 "$SSH_DIR"
+
+# -----------------------------
+# Generate SSH key if needed
+# -----------------------------
+if [[ -f "$SSH_KEY" && -f "$SSH_KEY.pub" ]]; then
+  echo "SSH key already exists at $SSH_KEY"
+  echo ""
 else
-  SUDO=""
+  echo "Generating new ed25519 SSH key..."
+  ssh-keygen -t ed25519 -f "$SSH_KEY" -N "" -C "coder-workspace"
+  chmod 600 "$SSH_KEY"
+  chmod 644 "$SSH_KEY.pub"
+  echo "SSH key generated successfully"
+  echo ""
 fi
 
 # -----------------------------
-# Apt cache freshness check
+# Test GitHub connectivity
 # -----------------------------
-# Determine last update mtime
-if [[ -f "$STAMP" ]]; then
-  mtime=$(stat -c %Y "$STAMP")
-else
-  # Fallback: newest file in apt lists, or 0 if none
-  mtime=$(find /var/lib/apt/lists -type f -printf '%T@ %p\n' 2>/dev/null \
-          | sort -nr | head -n1 | awk '{print int($1)}')
-  mtime=${mtime:-0}
-fi
+echo "Testing GitHub connectivity..."
+echo ""
 
-now=$(date +%s)
-age=$(( now - mtime ))
+GITHUB_PORT=22
+GITHUB_HOST="github.com"
 
-if [[ "$mtime" -eq 0 || "$age" -ge "$THRESHOLD_SEC" ]]; then
-  echo "Package cache missing or older than $THRESHOLD_DAYS days. Running apt update..."
-  $SUDO apt update
+# Test port 22 with a short timeout
+echo "Testing GitHub on port 22..."
+if timeout 3 ssh -T -p 22 -o ConnectTimeout=3 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "$SSH_KEY" git@github.com 2>&1 | grep -q "successfully authenticated"; then
+  echo "Port 22 is working"
+  GITHUB_PORT=22
+  GITHUB_HOST="github.com"
 else
-  days=$(( age / 86400 ))
-  echo "Package cache is fresh (${days} days old). Skipping update."
-fi
-
-# -----------------------------
-# Package install from file
-# -----------------------------
-if [[ -f "$PKGFILE" ]]; then
-  echo "Found $PKGFILE. Installing packages..."
-  # expects one package per line
-  $SUDO xargs -r -a "$PKGFILE" apt install -y
-else
-  echo "Package list $PKGFILE not found. Skipping install."
+  # Port 22 failed, try port 443
+  echo "Port 22 failed or timed out, testing port 443..."
+  if timeout 3 ssh -T -p 443 -o ConnectTimeout=3 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "$SSH_KEY" git@ssh.github.com 2>&1 | grep -q "successfully authenticated"; then
+    echo "Port 443 is working, using ssh.github.com:443"
+    GITHUB_PORT=443
+    GITHUB_HOST="ssh.github.com"
+  else
+    echo "WARNING: Neither port 22 nor 443 worked. Using port 443 as default."
+    echo "You may need to add your SSH key to GitHub before this works."
+    GITHUB_PORT=443
+    GITHUB_HOST="ssh.github.com"
+  fi
 fi
 
 # -----------------------------
-# SSH key: create if missing
+# Create SSH config
 # -----------------------------
-if [[ -f "$KEYFILE" && -f "$KEYFILE.pub" ]]; then
-  echo "SSH key already exists at $KEYFILE"
-else
-  echo "Generating new SSH key at $KEYFILE
-
-Simply press the Return key for passphrase prompts if you want a blank passphrase."
-  mkdir -p "$KEYDIR"
-  # Generate RSA 4096 as you started with; consider ed25519 if allowed
-  ssh-keygen -t rsa -b 4096 -f "$KEYFILE"
-  chmod 600 "$KEYFILE"
-  chmod 644 "$KEYFILE.pub"
-fi
-
-# -----------------------------
-# Prompt to add key to GitHub
-# -----------------------------
-cat <<'MSG'
-You must now add the generated key to GitHub to provide access to your repos.
-
-Follow these steps:
-  1. Copy the text below starting with "ssh-rsa ..."
-  2. Visit https://github.com/settings/keys
-  3. Click "New SSH key"
-  4. Enter a title such as BUas Server
-  5. Paste the key in the key box
-  6. Finish any approvals GitHub requires
-
-Press Enter when you are done.
-MSG
-
-cat "$KEYFILE.pub"
-read -r
-
-# -----------------------------
-# SSH config for GitHub on 443
-# -----------------------------
-cat > "$KEYDIR/config" <<'EOF'
+echo "Creating SSH configuration..."
+cat > "$SSH_DIR/config" <<EOF
 Host github.com
-  HostName ssh.github.com
-  User git
-  Port 443
-  IdentitiesOnly yes
+    HostName $GITHUB_HOST
+    Port $GITHUB_PORT
+    User git
+    IdentityFile ~/.ssh/id_ed25519
+    StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
+
+Host gitlab.com
+    HostName gitlab.com
+    User git
+    IdentityFile ~/.ssh/id_ed25519
+    StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
+
+Host bitbucket.org
+    HostName bitbucket.org
+    User git
+    IdentityFile ~/.ssh/id_ed25519
+    StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
 EOF
 
-# Host key for GitHub:443
-ssh-keyscan -p 443 ssh.github.com >> "$KEYDIR/known_hosts"
+chmod 600 "$SSH_DIR/config"
+echo "SSH configuration created (GitHub using port $GITHUB_PORT)"
+echo ""
 
 # -----------------------------
-# Fix SSH permissions and ownership
+# Display public key
 # -----------------------------
-echo "Setting correct SSH permissions and ownership..."
+cat <<'MSG'
+========================================
+ADD THIS PUBLIC KEY TO GITHUB
+========================================
+MSG
 
-if [[ $EUID -eq 0 ]]; then
-  # Running as root
-  chown -R root:root "$KEYDIR"
+cat "$SSH_KEY.pub"
+
+cat <<'MSG'
+========================================
+
+To add this key to GitHub:
+  1. Copy the key above (the entire line starting with "ssh-ed25519")
+  2. Visit https://github.com/settings/keys
+  3. Click "New SSH key"
+  4. Enter a title like "Coder.ai Workspace"
+  5. Paste the key in the "Key" field
+  6. Click "Add SSH key"
+
+MSG
+
+read -p "Press Enter after you've added the key to GitHub..."
+echo ""
+
+# -----------------------------
+# Run startup.sh to set up ephemeral environment
+# -----------------------------
+echo "Running startup.sh to configure this session..."
+echo ""
+
+STARTUP_SCRIPT="$PERSISTENT_DIR/startup.sh"
+if [[ -f "$STARTUP_SCRIPT" ]]; then
+  bash "$STARTUP_SCRIPT"
 else
-  # Running as regular user
-  chown -R "$USER:$(id -gn)" "$KEYDIR"
-fi
-
-# Permissions are sometimes reset by the instance. Reapply them.
-chmod 700 "$KEYDIR"
-chmod 600 "$KEYDIR/config"
-chmod 600 "$KEYFILE"
-chmod 644 "$KEYFILE.pub"
-chmod 600 "$KEYDIR/known_hosts" 2>/dev/null || true
-
-echo "SSH permissions configured."
-
-# -----------------------------
-# Link ~/.ssh if not present
-# -----------------------------
-echo "Creating symlink for ssh at ~/.ssh"
-if [[ ! -e "$HOME/.ssh" ]]; then
-  ln -s "$KEYDIR" "$HOME/.ssh"
-  echo "Symlink created."
-else
-  echo "~/.ssh already exists, skipping."
-fi
-
-# -----------------------------
-# Test GitHub SSH
-# -----------------------------
-echo "Testing GitHub access"
-out="$(ssh -T git@github.com 2>&1)"
-rc=$?
-if [[ $rc -eq 1 && "$out" == *"successfully authenticated"* ]]; then
-  echo "Success! You have access to GitHub via SSH"
-else
-  echo "Your SSH keys are not valid or GitHub SSH is not reachable."
-  echo "Details:"
-  echo "$out"
+  echo "ERROR: startup.sh not found at $STARTUP_SCRIPT"
+  echo "Please ensure startup.sh is in $PERSISTENT_DIR"
   exit 1
 fi
 
 # -----------------------------
-# Optional: prompt to clone
+# Final instructions
 # -----------------------------
-cat <<'NOTE'
+cat <<FINAL
 
-Enter a GitHub repo URL, for example:
-  git@github.com:owner/repo.git
+========================================
+SETUP COMPLETE
+========================================
 
-You can find this on the repo page under Code > Local > SSH.
-NOTE
+Your SSH keys are stored in persistent storage at:
+  $PERSISTENT_DIR/ssh/
 
-read -r -p "REPO URL: " REPO
-if [[ -n "$REPO" ]]; then
-  echo "Cloning $REPO..."
-  if git clone "$REPO"; then
-    echo "Clone successful."
-  else
-    echo "Clone failed. Please check the URL or your SSH setup."
-  fi
-else
-  cat <<'HINT'
-No URL provided. You can manually clone later with:
-  git clone git@github.com:you/repo.git
-HINT
-fi
+IMPORTANT: After each workspace restart, you must run:
+  cd $PERSISTENT_DIR
+  bash startup.sh
 
-# -----------------------------
-# Example: install project deps
-# -----------------------------
-if [[ -f /home/y2a/fae2-nlpr-group-group-22/python/requirements.txt ]]; then
-  pip install -r /home/y2a/fae2-nlpr-group-group-22/python/requirements.txt
-fi
+This will restore your SSH keys and install packages.
+
+You can now clone repositories with:
+  git clone git@github.com:username/repo.git
+
+========================================
+FINAL
