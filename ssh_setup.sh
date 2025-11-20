@@ -80,6 +80,40 @@ else
 fi
 
 # -----------------------------
+# Create coder.ai environment compatibility file
+# -----------------------------
+echo "Creating coder.ai environment compatibility file..."
+
+# Create environment file in persistent storage
+cat > "$PERSISTENT_DIR/.coder_env" <<'ENVEOF'
+# Environment variables for coder.ai compatibility
+# These match the environment provided by the coder.ai web terminal
+export PIP_BREAK_SYSTEM_PACKAGES=1
+export PIP_DEFAULT_TIMEOUT=100
+export PIP_DISABLE_PIP_VERSION_CHECK=1
+export TF_PYTHON_VERSION=3.12
+export PYTHONIOENCODING=utf-8
+ENVEOF
+
+# Add sourcing to .bashrc if not already there
+if ! grep -q "source $PERSISTENT_DIR/.coder_env" ~/.bashrc 2>/dev/null; then
+  echo "" >> ~/.bashrc
+  echo "# Source coder.ai environment variables" >> ~/.bashrc
+  echo "if [ -f $PERSISTENT_DIR/.coder_env ]; then" >> ~/.bashrc
+  echo "    source $PERSISTENT_DIR/.coder_env" >> ~/.bashrc
+  echo "fi" >> ~/.bashrc
+  echo "Environment variables will be sourced from .bashrc"
+else
+  echo "Environment variables already configured in .bashrc"
+fi
+
+# Source it now for current session
+source "$PERSISTENT_DIR/.coder_env"
+
+echo "Coder.ai environment configured"
+echo ""
+
+# -----------------------------
 # Set root password
 # -----------------------------
 if [[ -f "$AUTHORIZED_KEYS" ]]; then

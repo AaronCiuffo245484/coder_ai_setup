@@ -111,13 +111,18 @@ You can safely close this terminal window.
 
 To connect from your laptop:
 
-  1. SSH to your server:
+  1. Basic two-hop connection:
      ssh $REMOTE_USER@$REMOTE_HOST
-
-  2. From your server, connect to this coder.ai instance:
      ssh -p $REMOTE_PORT root@localhost
 
-  (You'll be prompted for the root password you set)
+  2. Direct connection with full environment (recommended):
+     ssh -t -p $REMOTE_SSH_PORT $REMOTE_USER@$REMOTE_HOST 'ssh -t -p $REMOTE_PORT root@localhost "cd $PERSISTENT_DIR && bash -l"'
+
+  3. iTerm2 with native tmux integration:
+     ssh -t -p $REMOTE_SSH_PORT $REMOTE_USER@$REMOTE_HOST 'ssh -t -p $REMOTE_PORT root@localhost "cd $PERSISTENT_DIR && bash -l -c \"tmux -CC new -A -s myshell\""'
+
+Note: Using 'bash -l' ensures you get the same environment as the coder.ai web terminal,
+including pip compatibility and all CUDA/TensorFlow environment variables.
 
 To check tunnel status:
   ps aux | grep $TUNNEL_PID
