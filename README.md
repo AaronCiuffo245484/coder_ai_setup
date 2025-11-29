@@ -199,6 +199,138 @@ The startup script will:
 
 You can then continue working with git as normal.
 
+## VSCode Coder.ai Extension
+
+You can connect to your coder.ai workspace directly from VSCode using the official Coder extension, enabling you to work with remote files, terminals, and most importantly, the remote Jupyter kernel for running notebooks.
+
+### Installing the Coder Extension
+
+1. Open VSCode on your local machine
+2. Go to Extensions (Ctrl+Shift+X / Cmd+Shift+X)
+3. Search for "Coder"
+4. Install the official "Coder" extension by Coder
+5. Restart VSCode if prompted
+
+### Connecting to Your Workspace
+
+1. Click the Coder icon in the VSCode sidebar (or use Command Palette: "Coder: Open")
+2. Click "Add Workspace" or the "+" icon
+3. Enter your coder.ai URL: `http://coder.ai.buas.nl`
+4. Authenticate with your credentials
+5. Select your workspace from the list
+6. VSCode will connect and reload with a remote connection
+
+You should now see your workspace files in the Explorer pane and can open terminals that run directly on your coder.ai instance.
+
+### Using the Remote Jupyter Kernel
+
+The coder.ai workspace provides a Jupyter server that you can connect to from VSCode for running notebooks.
+
+#### Step 1: Install Jupyter Extension
+
+Make sure you have the Jupyter extension installed on the remote:
+
+1. With your VSCode connected to coder.ai, open Extensions (Ctrl+Shift+X / Cmd+Shift+X)
+2. Search for "Jupyter"
+3. Install the official "Jupyter" extension by Microsoft
+4. If you see "Install in SSH: [hostname]", click it to install on the remote
+5. Reload VSCode if prompted
+
+#### Step 2: Get the Jupyter Server URL
+
+Open a terminal in VSCode (it should be connected to your remote workspace) and run:
+
+```bash
+jupyter notebook list --json
+```
+
+You should see output like:
+```json
+{"base_url": "/@245484/Y2B-20251120-v0p4.main/apps/jupyter/", "hostname": "0.0.0.0", "notebook_dir": "/home/y2b", "password": false, "pid": 271, "port": 8888, "secure": false, "sock": "", "token": "", "url": "http://0.0.0.0:8888/@245484/Y2B-20251120-v0p4.main/apps/jupyter/"}
+```
+
+Note the `url` field - this is your Jupyter server URL. The server typically runs without a token (token is empty).
+
+#### Step 3: Connect VSCode to the Jupyter Server
+
+1. Open Command Palette (Ctrl+Shift+P / Cmd+Shift+P)
+2. Type: `Jupyter: Specify Jupyter Server for Connections`
+3. Select "Existing: Specify the URI of an existing server"
+4. Enter the full URL from the previous step: `http://0.0.0.0:8888/@245484/Y2B-20251120-v0p4.main/apps/jupyter/`
+   - Replace the path after `/8888/` with your actual base_url from the JSON output
+   - No token is needed since the server runs without authentication
+
+#### Step 4: Use the Jupyter Kernel
+
+Now you can use Jupyter notebooks with the remote kernel:
+
+1. Open or create a `.ipynb` file in your workspace
+2. Click "Select Kernel" in the top right of the notebook
+3. Choose "Existing Jupyter Server"
+4. Select the server you just configured
+5. Choose your desired Python environment (e.g., Python 3)
+6. Run a test cell to verify the connection:
+   ```python
+   import sys
+   print(f"Running on: {sys.version}")
+   print(f"Python path: {sys.executable}")
+   ```
+
+You should see output confirming you're running on the remote coder.ai environment.
+
+#### Step 5: Verify GPU Access (if applicable)
+
+If your workspace has GPU access, test it with:
+
+```python
+import torch
+print(f"CUDA available: {torch.cuda.is_available()}")
+if torch.cuda.is_available():
+    print(f"GPU: {torch.cuda.get_device_name(0)}")
+```
+
+### Troubleshooting VSCode Connection
+
+#### Jupyter Server Connection Issues
+
+If you can't connect to the Jupyter server:
+
+1. Verify the server is running:
+   ```bash
+   jupyter notebook list
+   ```
+2. Check the exact URL format - it should include the full base_url path
+3. Try reconnecting VSCode to the workspace (disconnect and reconnect from the Coder sidebar)
+
+#### Kernel Won't Start
+
+If the kernel connects but won't start:
+
+1. Check for Python environment issues in the remote terminal:
+   ```bash
+   python --version
+   which python
+   ```
+2. Try selecting a different kernel from the kernel picker
+3. Restart the Jupyter server (requires stopping it from the coder.ai web interface and starting it again)
+
+#### VSCode Can't Find Remote Files
+
+If files don't appear after connecting:
+
+1. Ensure you've selected the correct workspace in the Coder extension
+2. Check you have proper file permissions in your workspace
+3. Try reloading the VSCode window (Command Palette → "Developer: Reload Window")
+
+### Benefits of Using VSCode with Coder.ai
+
+- **Full IDE experience** with IntelliSense, debugging, and extensions
+- **Native Jupyter notebook support** with better editing than the web interface
+- **Integrated terminal** for running commands alongside your code
+- **Git integration** works seamlessly with your configured SSH keys
+- **Extension ecosystem** - install VSCode extensions that run on the remote
+- **Local file editing** of remote files without manual uploading
+
 ## Troubleshooting
 
 ### Git Operations Fail or Timeout
